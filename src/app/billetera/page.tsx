@@ -42,6 +42,8 @@ export default function BilleteraPage() {
   const [holderName, setHolderName] = useState(seller.accountHolderName || "");
   const [holderCedula, setHolderCedula] = useState(seller.accountHolderCedula || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPayoutSuccess, setIsPayoutSuccess] = useState(false);
+  const [lastSubmittedAmount, setLastSubmittedAmount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -242,8 +244,12 @@ export default function BilleteraPage() {
       // También registrar en store local para actualización reactiva inmediata
       store.requestPayout(amount);
 
-      showToast(`¡Solicitud de retiro por $${amount.toFixed(2)} USD enviada a tesorería!`, "success");
-      setIsModalOpen(false);
+      setLastSubmittedAmount(amount);
+      setIsPayoutSuccess(true);
+      showToast(
+        "¡Solicitud registrada con éxito! Tu saldo entrará en el corte de transferencias del próximo lunes. Te notificaremos por WhatsApp con el comprobante bancario.",
+        "success"
+      );
       setWithdrawAmount("");
       
       // Notificar cambio
@@ -335,15 +341,26 @@ export default function BilleteraPage() {
               <Lock className="h-4 w-4" />
               <span>Faltan ${missingAmount.toFixed(2)} USD para Retirar</span>
             </button>
+            <p className="mt-2 text-center text-[11px] text-neutral-400">
+              🗓️ Transferencias bancarias y DeUna procesadas los días lunes (Monto mín. $20.00 USD).
+            </p>
           </div>
         ) : (
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 font-bold text-black shadow-lg shadow-emerald-500/20 transition hover:opacity-95 active:scale-[0.98]"
-          >
-            <ArrowDownLeft className="h-5 w-5" />
-            <span>Solicitar Retiro (${seller.balanceAvailable.toFixed(2)} USD)</span>
-          </button>
+          <div>
+            <button
+              onClick={() => {
+                setIsPayoutSuccess(false);
+                setIsModalOpen(true);
+              }}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 font-bold text-black shadow-lg shadow-emerald-500/20 transition hover:opacity-95 active:scale-[0.98]"
+            >
+              <ArrowDownLeft className="h-5 w-5" />
+              <span>Solicitar Retiro para Corte Semanal</span>
+            </button>
+            <p className="mt-2 text-center text-[11px] text-neutral-400">
+              🗓️ Transferencias bancarias y DeUna procesadas los días lunes (Monto mín. $20.00 USD).
+            </p>
+          </div>
         )}
       </div>
 
@@ -548,139 +565,192 @@ export default function BilleteraPage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-md rounded-2xl border border-neutral-800 bg-neutral-950 p-5 shadow-2xl">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-emerald-400" />
-              <span>Solicitar Retiro de Comisiones</span>
-            </h3>
-            <p className="mt-1 text-xs text-neutral-400">
-              Saldo disponible: <strong className="text-emerald-400">${seller.balanceAvailable.toFixed(2)} USD</strong> (Mínimo de retiro: $20.00 USD)
-            </p>
-
-            <form onSubmit={handleWithdrawSubmit} className="mt-4 space-y-3 text-xs">
-              {/* Monto */}
-              <div>
-                <label className="block text-neutral-300 font-medium mb-1">
-                  Monto a Retirar (USD) *
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 font-bold">$</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="20.00"
-                    max={seller.balanceAvailable}
-                    required
-                    placeholder="20.00"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    className="w-full rounded-xl border border-neutral-800 bg-neutral-900 py-2.5 pl-8 pr-3 text-sm font-bold text-white outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Banco de Ecuador */}
-              <div>
-                <label className="block text-neutral-300 font-medium mb-1">
-                  Banco o Billetera en Ecuador *
-                </label>
-                <select
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value as BankEcuador)}
-                  className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                >
-                  <option value="BANCO_PICHINCHA">Banco Pichincha</option>
-                  <option value="DEUNA_PICHINCHA">DeUna! Pichincha (Inmediato)</option>
-                  <option value="BANCO_GUAYAQUIL">Banco Guayaquil</option>
-                  <option value="PRODUBANCO">Produbanco</option>
-                  <option value="BANCO_PACIFICO">Banco del Pacífico</option>
-                  <option value="BANCO_BOLIVARIANO">Banco Bolivariano</option>
-                  <option value="COOPERATIVA_JEP">Cooperativa JEP</option>
-                  <option value="OTRO">Otro Banco / Cooperativa</option>
-                </select>
-              </div>
-
-              {/* Tipo de Cuenta */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-neutral-300 font-medium mb-1">
-                    Tipo de Cuenta
-                  </label>
-                  <select
-                    value={accountType}
-                    onChange={(e) => setAccountType(e.target.value as "AHORROS" | "CORRIENTE" | "DEUNA")}
-                    className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                  >
-                    <option value="AHORROS">Ahorros</option>
-                    <option value="CORRIENTE">Corriente</option>
-                    <option value="DEUNA">Billetera Móvil</option>
-                  </select>
+            {isPayoutSuccess ? (
+              // VISTA DE ÉXITO TRAS SOLICITAR RETIRO
+              <div className="text-center py-2">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 mb-3">
+                  <CheckCircle2 className="h-8 w-8" />
                 </div>
 
-                <div>
-                  <label className="block text-neutral-300 font-medium mb-1">
-                    Número de Cuenta / Celular *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="2201948572"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
+                <h3 className="text-base font-bold text-white">
+                  ¡Solicitud Registrada con Éxito!
+                </h3>
 
-              {/* Titular y Cédula */}
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-neutral-300 font-medium mb-1">
-                    Nombre del Titular *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Carlos Mendoza"
-                    value={holderName}
-                    onChange={(e) => setHolderName(e.target.value)}
-                    className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                  />
+                <p className="mt-2.5 text-xs text-neutral-300 leading-relaxed px-1">
+                  ¡Solicitud registrada con éxito! Tu saldo entrará en el corte de transferencias del próximo lunes. Te notificaremos por WhatsApp con el comprobante bancario.
+                </p>
+
+                <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-900/70 p-3 text-xs text-neutral-300 space-y-2 text-left">
+                  <div className="flex justify-between">
+                    <span className="text-neutral-400">Monto solicitado:</span>
+                    <span className="font-bold text-emerald-400 font-mono">
+                      ${lastSubmittedAmount.toFixed(2)} USD
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-400">Corte de pago:</span>
+                    <span className="font-semibold text-white">Próximo Lunes</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-400">Notificación:</span>
+                    <span className="text-emerald-400 font-medium">WhatsApp con comprobante</span>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-neutral-300 font-medium mb-1">
-                    Cédula del Titular *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={10}
-                    placeholder="1723456789"
-                    value={holderCedula}
-                    onChange={(e) => setHolderCedula(e.target.value)}
-                    className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Botonera */}
-              <div className="flex gap-2 pt-3">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="w-1/2 rounded-xl border border-neutral-800 bg-neutral-900 py-2.5 font-semibold text-neutral-300 hover:bg-neutral-800"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setIsPayoutSuccess(false);
+                  }}
+                  className="mt-5 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 text-xs font-bold text-black shadow-lg shadow-emerald-500/20 hover:opacity-95 transition active:scale-[0.98]"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-1/2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-2.5 font-bold text-black shadow-lg shadow-emerald-500/20 hover:opacity-95 disabled:opacity-50"
-                >
-                  {isSubmitting ? "Procesando..." : "Confirmar Retiro"}
+                  Entendido
                 </button>
               </div>
-            </form>
+            ) : (
+              // FORMULARIO DE SOLICITUD DE RETIRO
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-emerald-400" />
+                  <span>Solicitar Retiro para Corte Semanal</span>
+                </h3>
+                <p className="mt-1 text-xs text-neutral-400">
+                  Saldo disponible: <strong className="text-emerald-400">${seller.balanceAvailable.toFixed(2)} USD</strong> (Monto mín. $20.00 USD)
+                </p>
+
+                <div className="mt-2.5 rounded-xl border border-neutral-800 bg-neutral-900/60 p-2.5 text-[11px] text-neutral-400 flex items-center gap-2">
+                  <Clock className="h-4 w-4 shrink-0 text-emerald-400" />
+                  <span>🗓️ Transferencias bancarias y DeUna procesadas los días lunes (Monto mín. $20.00 USD).</span>
+                </div>
+
+                <form onSubmit={handleWithdrawSubmit} className="mt-4 space-y-3 text-xs">
+                  {/* Monto */}
+                  <div>
+                    <label className="block text-neutral-300 font-medium mb-1">
+                      Monto a Retirar (USD) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500 font-bold">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="20.00"
+                        max={seller.balanceAvailable}
+                        required
+                        placeholder="20.00"
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 py-2.5 pl-8 pr-3 text-sm font-bold text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Banco de Ecuador */}
+                  <div>
+                    <label className="block text-neutral-300 font-medium mb-1">
+                      Banco o Billetera en Ecuador *
+                    </label>
+                    <select
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value as BankEcuador)}
+                      className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
+                    >
+                      <option value="BANCO_PICHINCHA">Banco Pichincha</option>
+                      <option value="DEUNA_PICHINCHA">DeUna! Pichincha (Inmediato)</option>
+                      <option value="BANCO_GUAYAQUIL">Banco Guayaquil</option>
+                      <option value="PRODUBANCO">Produbanco</option>
+                      <option value="BANCO_PACIFICO">Banco del Pacífico</option>
+                      <option value="BANCO_BOLIVARIANO">Banco Bolivariano</option>
+                      <option value="COOPERATIVA_JEP">Cooperativa JEP</option>
+                      <option value="OTRO">Otro Banco / Cooperativa</option>
+                    </select>
+                  </div>
+
+                  {/* Tipo de Cuenta */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-neutral-300 font-medium mb-1">
+                        Tipo de Cuenta
+                      </label>
+                      <select
+                        value={accountType}
+                        onChange={(e) => setAccountType(e.target.value as "AHORROS" | "CORRIENTE" | "DEUNA")}
+                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      >
+                        <option value="AHORROS">Ahorros</option>
+                        <option value="CORRIENTE">Corriente</option>
+                        <option value="DEUNA">Billetera Móvil</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-neutral-300 font-medium mb-1">
+                        Número de Cuenta / Celular *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="2201948572"
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Titular y Cédula */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-neutral-300 font-medium mb-1">
+                        Nombre del Titular *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Carlos Mendoza"
+                        value={holderName}
+                        onChange={(e) => setHolderName(e.target.value)}
+                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-neutral-300 font-medium mb-1">
+                        Cédula del Titular *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={10}
+                        placeholder="1723456789"
+                        value={holderCedula}
+                        onChange={(e) => setHolderCedula(e.target.value)}
+                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Botonera */}
+                  <div className="flex gap-2 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="w-1/2 rounded-xl border border-neutral-800 bg-neutral-900 py-2.5 font-semibold text-neutral-300 hover:bg-neutral-800"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-1/2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-2.5 font-bold text-black shadow-lg shadow-emerald-500/20 hover:opacity-95 disabled:opacity-50"
+                    >
+                      {isSubmitting ? "Procesando..." : "Confirmar Retiro"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}
