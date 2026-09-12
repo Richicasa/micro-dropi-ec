@@ -16,6 +16,7 @@ import {
 import { store } from "@/lib/store";
 import { SellerProfile, PayoutRequest, BankEcuador } from "@/lib/types";
 import { showToast } from "@/components/Toast";
+import WeeklyChallengeCard from "@/components/WeeklyChallengeCard";
 
 export default function BilleteraPage() {
   const [seller, setSeller] = useState<SellerProfile>(store.getSeller());
@@ -170,6 +171,9 @@ export default function BilleteraPage() {
           </p>
         </div>
       </div>
+
+      {/* Desafío Semanal y Gamificación */}
+      <WeeklyChallengeCard orders={orders} />
 
       {/* Explicación Reglas COD Ecuador */}
       <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/40 p-3.5 text-xs text-neutral-400 space-y-1.5">
