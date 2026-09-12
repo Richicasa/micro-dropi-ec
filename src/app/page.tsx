@@ -51,11 +51,16 @@ export default function Home() {
       {/* Saludo & Status */}
       <div className="flex items-center justify-between pt-2">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">
-            Hola, {seller.fullName.split(" ")[0]} 👋
-          </h1>
-          <p className="text-xs text-neutral-400">
-            Panel de Comisiones Contra Entrega (COD) Ecuador
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold tracking-tight text-white">
+              Hola, {seller.fullName.split(" ")[0]} 👋
+            </h1>
+            <span className="rounded-full border border-orange-500/40 bg-orange-950/40 px-2 py-0.5 text-[10px] font-bold text-orange-400">
+              🔥 {seller.streakCount || 0}d
+            </span>
+          </div>
+          <p className="text-xs text-neutral-400 mt-0.5">
+            Rango: <strong className="text-white font-semibold">{seller.sellerRank || "NOVATO"}</strong> &bull; COD Ecuador
           </p>
         </div>
         <div className="flex items-center gap-1.5 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1 text-xs text-neutral-300">
@@ -85,7 +90,7 @@ export default function Home() {
             ${seller.balanceAvailable.toFixed(2)}
           </div>
           <p className="mt-1 text-[11px] text-neutral-400">
-            Listo para retirar a Banco Pichincha, Guayaquil o DeUna!
+            Listo para transferencias a Banco Pichincha, Guayaquil o DeUna! (Mínimo $20)
           </p>
         </div>
 
@@ -117,6 +122,28 @@ export default function Home() {
           </span>
         </div>
       </div>
+
+      {/* Banner Red de Referidos ($5 USD por amigo) */}
+      <Link
+        href="/equipo"
+        className="flex items-center justify-between rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/50 via-neutral-900 to-neutral-950 p-3.5 transition hover:border-indigo-500/50 active:scale-[0.99]"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 font-bold">
+            👥
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>Invita Comisionistas y Gana +$5.00 USD</span>
+              <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-bold text-emerald-400">+$5</span>
+            </div>
+            <p className="text-[10px] text-neutral-400">
+              Tu código: <strong className="text-emerald-400 font-mono">{seller.referralCode}</strong> &bull; {seller.referredCount || 0} amigos unidos
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="h-4 w-4 text-neutral-400" />
+      </Link>
 
       {/* Acciones Rápidas */}
       <div className="grid grid-cols-2 gap-3">

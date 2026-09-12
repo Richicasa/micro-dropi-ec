@@ -24,6 +24,8 @@ export type BankEcuador =
   | "DEUNA_PICHINCHA"
   | "OTRO";
 
+export type SellerRank = "NOVATO" | "VERIFICADO" | "ELITE";
+
 export interface SellerProfile {
   id: string;
   fullName: string;
@@ -39,6 +41,16 @@ export interface SellerProfile {
   balanceAvailable: number;
   balanceWithdrawn: number;
   createdAt: string;
+
+  // Gamificación, Rango y Referidos
+  referralCode: string;
+  referredBy?: string;
+  streakCount: number;
+  lastOrderDate?: string;
+  welcomeBonusAwarded: boolean;
+  sellerRank: SellerRank;
+  totalReferralEarnings: number;
+  referredCount: number;
 }
 
 export interface Product {
@@ -82,7 +94,7 @@ export interface Order {
   deliveryCost: number; // Costo de envío ($3.50 base)
   sellerCommission: number; // Ganancia comisionista
   
-  // Seguimiento n8n y courier
+  // Seguimiento courier
   courierStatusDetail?: string;
   internalNotes?: string;
   createdAt: string;
@@ -108,4 +120,12 @@ export interface PayoutRequest {
   rejectionReason?: string;
   createdAt: string;
   processedAt?: string;
+}
+
+export interface ReferralFriend {
+  id: string;
+  name: string;
+  joinedDate: string;
+  firstOrderDelivered: boolean;
+  bonusEarned: number;
 }

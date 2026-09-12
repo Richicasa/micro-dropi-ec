@@ -49,6 +49,12 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
+DO $$ BEGIN
+    CREATE TYPE seller_rank AS ENUM ('NOVATO', 'VERIFICADO', 'ELITE');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 -- 3. TABLA: PROFILES (VENDEDORES COMISIONISTAS / BODEGAS / ADMINS)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -68,6 +74,16 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     balance_pending NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (balance_pending >= 0),
     balance_available NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (balance_available >= 0),
     balance_withdrawn NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (balance_withdrawn >= 0),
+
+    -- Retención Psicológica, Gamificación y Referidos
+    referral_code VARCHAR(12) UNIQUE,
+    referred_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    streak_count INTEGER NOT NULL DEFAULT 0 CHECK (streak_count >= 0),
+    last_order_date DATE,
+    welcome_bonus_awarded BOOLEAN NOT NULL DEFAULT FALSE,
+    seller_rank seller_rank NOT NULL DEFAULT 'NOVATO',
+    total_referral_earnings NUMERIC(12,2) NOT NULL DEFAULT 0.00 CHECK (total_referral_earnings >= 0),
+    referred_count INTEGER NOT NULL DEFAULT 0 CHECK (referred_count >= 0),
     
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
@@ -142,7 +158,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 CREATE TABLE IF NOT EXISTS public.payouts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     seller_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
-    amount NUMERIC(10,2) NOT NULL CHECK (amount >= 5.00), -- Mínimo de retiro $5 USD
+    amount NUMERIC(10,2) NOT NULL CHECK (amount >= 20.00), -- Mínimo de retiro $20 USD
     status payout_status NOT NULL DEFAULT 'SOLICITADO',
     
     -- Snapshot bancario al momento de solicitar
@@ -170,16 +186,50 @@ CREATE TABLE IF NOT EXISTS public.order_status_history (
 -- 8. FUNCIONES Y TRIGGERS DE AUTOMATIZACIÓN FINANCIERA (MOTOR COD)
 -- ==============================================================================
 
--- A) AUTO-CREAR PERFIL AL REGISTRARSE EN AUTH.USERS
+-- A) AUTO-CREAR PERFIL AL REGISTRARSE EN AUTH.USERS (CON BONO DE BIENVENIDA $5 Y CÓDIGO REFERIDO)
 CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_referral_code VARCHAR(12);
+    v_sponsor_id UUID := NULL;
+    v_incoming_ref TEXT;
 BEGIN
-    INSERT INTO public.profiles (id, full_name, phone_whatsapp, role)
+    -- 1. Generar código de referido único (ej: DROPI-A1B2)
+    v_referral_code := 'DROPI-' || UPPER(SUBSTRING(MD5(NEW.id::TEXT || clock_timestamp()::TEXT) FROM 1 FOR 4));
+
+    -- 2. Verificar si viene referido por alguien
+    v_incoming_ref := NEW.raw_user_meta_data->>'referral_code';
+    IF v_incoming_ref IS NOT NULL AND TRIM(v_incoming_ref) != '' THEN
+        SELECT id INTO v_sponsor_id FROM public.profiles WHERE referral_code = UPPER(TRIM(v_incoming_ref)) LIMIT 1;
+        IF v_sponsor_id IS NOT NULL THEN
+            UPDATE public.profiles 
+            SET referred_count = referred_count + 1, updated_at = now()
+            WHERE id = v_sponsor_id;
+        END IF;
+    END IF;
+
+    -- 3. Crear perfil con Bono de Bienvenida ($5.00 USD retenidos hasta alcanzar el retiro mínimo de $20)
+    INSERT INTO public.profiles (
+        id, 
+        full_name, 
+        phone_whatsapp, 
+        role, 
+        referral_code, 
+        referred_by, 
+        balance_available, 
+        welcome_bonus_awarded,
+        seller_rank
+    )
     VALUES (
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'full_name', 'Vendedor Micro-Dropi'),
         COALESCE(NEW.raw_user_meta_data->>'phone_whatsapp', '+593900000000'),
-        'seller'
+        'seller',
+        v_referral_code,
+        v_sponsor_id,
+        5.00,
+        TRUE,
+        'NOVATO'
     )
     ON CONFLICT (id) DO NOTHING;
     RETURN NEW;
@@ -299,12 +349,19 @@ CREATE TRIGGER trg_before_order_status_updated
     FOR EACH ROW EXECUTE FUNCTION public.handle_order_status_update();
 
 -- C.1) FUNCIÓN RPC PARA LIQUIDACIÓN ATÓMICA DESDE ROUTE HANDLERS
+-- Incluye: Acreditación de comisión, Bono de $5.00 al Patrocinador en 1era entrega, Cálculo de Rango y Racha
 CREATE OR REPLACE FUNCTION public.credit_seller_commission(p_order_id UUID)
 RETURNS JSONB AS $$
 DECLARE
     target_order RECORD;
-    v_seller_id UUID;
-    v_commission NUMERIC(10,2);
+    v_seller RECORD;
+    v_sponsor_id UUID;
+    v_delivered_orders_count INTEGER;
+    v_is_first_delivery BOOLEAN := FALSE;
+    v_referral_bonus NUMERIC(10,2) := 5.00;
+    v_new_rank seller_rank;
+    v_current_streak INTEGER;
+    v_last_order_date DATE;
 BEGIN
     SELECT * INTO target_order FROM public.orders WHERE id = p_order_id FOR UPDATE;
     IF NOT FOUND THEN
@@ -315,21 +372,77 @@ BEGIN
         RETURN jsonb_build_object('success', true, 'already_credited', true);
     END IF;
 
-    v_seller_id := target_order.seller_id;
-    v_commission := target_order.seller_commission;
-
-    -- Actualizar estado a ENTREGADO (el trigger maneja histórico y balance)
+    -- Actualizar estado a ENTREGADO (el trigger trg_before_order_status_updated maneja histórico y balance comisionista)
     UPDATE public.orders
     SET status = 'ENTREGADO',
         delivered_at = now(),
         updated_at = now()
     WHERE id = p_order_id;
 
+    -- Obtener perfil del comisionista
+    SELECT * INTO v_seller FROM public.profiles WHERE id = target_order.seller_id FOR UPDATE;
+
+    -- 1. Contar total de pedidos entregados acumulados del comisionista
+    SELECT COUNT(*) INTO v_delivered_orders_count 
+    FROM public.orders 
+    WHERE seller_id = target_order.seller_id AND status = 'ENTREGADO';
+
+    -- 2. Bono de Referido (+$5 USD al patrocinador en la PRIMERA entrega del referido)
+    IF v_delivered_orders_count = 1 AND v_seller.referred_by IS NOT NULL THEN
+        v_is_first_delivery := TRUE;
+        v_sponsor_id := v_seller.referred_by;
+
+        -- Acreditar $5 al patrocinador
+        UPDATE public.profiles
+        SET balance_available = balance_available + v_referral_bonus,
+            total_referral_earnings = total_referral_earnings + v_referral_bonus,
+            updated_at = now()
+        WHERE id = v_sponsor_id;
+    END IF;
+
+    -- 3. Calcular y actualizar Rango de Vendedor
+    -- 0-4: NOVATO | 5-19: VERIFICADO (Despacho prioritario) | 20+: ELITE (Catálogo VIP)
+    IF v_delivered_orders_count >= 20 THEN
+        v_new_rank := 'ELITE';
+    ELSIF v_delivered_orders_count >= 5 THEN
+        v_new_rank := 'VERIFICADO';
+    ELSE
+        v_new_rank := 'NOVATO';
+    END IF;
+
+    -- 4. Cálculo de Racha Diaria (Streak)
+    v_last_order_date := v_seller.last_order_date;
+    v_current_streak := COALESCE(v_seller.streak_count, 0);
+
+    IF v_last_order_date IS NULL THEN
+        v_current_streak := 1;
+    ELSIF v_last_order_date = CURRENT_DATE THEN
+        -- Ya entregó hoy, mantener racha
+        NULL;
+    ELSIF v_last_order_date = CURRENT_DATE - 1 THEN
+        -- Entrega consecutiva del día siguiente
+        v_current_streak := v_current_streak + 1;
+    ELSE
+        -- Se rompió la racha anterior, reiniciar a 1
+        v_current_streak := 1;
+    END IF;
+
+    -- Actualizar perfil del vendedor con nuevo rango y racha
+    UPDATE public.profiles
+    SET seller_rank = v_new_rank,
+        streak_count = v_current_streak,
+        last_order_date = CURRENT_DATE,
+        updated_at = now()
+    WHERE id = target_order.seller_id;
+
     RETURN jsonb_build_object(
         'success', true,
         'order_id', p_order_id,
-        'seller_id', v_seller_id,
-        'commission_credited', v_commission
+        'seller_id', target_order.seller_id,
+        'commission_credited', target_order.seller_commission,
+        'new_rank', v_new_rank,
+        'streak_count', v_current_streak,
+        'sponsor_bonus_credited', v_is_first_delivery
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -341,6 +454,11 @@ RETURNS TRIGGER AS $$
 DECLARE
     available_funds NUMERIC(12,2);
 BEGIN
+    -- Candado de retiro mínimo de $20.00 USD
+    IF NEW.amount < 20.00 THEN
+        RAISE EXCEPTION 'El monto mínimo de retiro en Ecuador es de $20.00 USD. Solicitaste: $% USD', NEW.amount;
+    END IF;
+
     SELECT balance_available INTO available_funds 
     FROM public.profiles WHERE id = NEW.seller_id FOR UPDATE;
 

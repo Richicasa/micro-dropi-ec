@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Wallet,
   Clock,
@@ -11,12 +12,18 @@ import {
   Building2,
   ExternalLink,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  Lock,
+  Users,
+  ArrowRight,
+  Sparkles
 } from "lucide-react";
 import { store } from "@/lib/store";
 import { SellerProfile, PayoutRequest, BankEcuador } from "@/lib/types";
 import { showToast } from "@/components/Toast";
 import WeeklyChallengeCard from "@/components/WeeklyChallengeCard";
+import LossAversionBanner from "@/components/LossAversionBanner";
+import StreakBadge from "@/components/StreakBadge";
 
 export default function BilleteraPage() {
   const [seller, setSeller] = useState<SellerProfile>(store.getSeller());
@@ -54,6 +61,11 @@ export default function BilleteraPage() {
     };
   }, []);
 
+  const MIN_WITHDRAWAL = 20.0;
+  const canWithdraw = seller.balanceAvailable >= MIN_WITHDRAWAL;
+  const missingAmount = Math.max(0, Number((MIN_WITHDRAWAL - seller.balanceAvailable).toFixed(2)));
+  const progressPercent = Math.min(100, Math.round((seller.balanceAvailable / MIN_WITHDRAWAL) * 100));
+
   const handleWithdrawSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(withdrawAmount);
@@ -63,8 +75,8 @@ export default function BilleteraPage() {
       return;
     }
 
-    if (amount < 5.0) {
-      showToast("El monto mínimo de retiro en Ecuador es $5.00 USD", "error");
+    if (amount < 20.0) {
+      showToast("El monto mínimo de retiro en Ecuador es $20.00 USD", "error");
       return;
     }
 
@@ -98,17 +110,26 @@ export default function BilleteraPage() {
   return (
     <div className="mx-auto max-w-md space-y-4 px-4 sm:max-w-xl md:max-w-2xl">
       {/* Header */}
-      <div className="pt-2">
-        <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-          <span>Mi Billetera & Comisiones</span>
-          <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-400">
-            USD Ecuador 🇪🇨
-          </span>
-        </h1>
-        <p className="text-xs text-neutral-400 mt-0.5">
-          Gestiona tus ganancias acumuladas por ventas contra entrega y solicita transferencias directas a tu banco.
-        </p>
+      <div className="pt-2 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            <span>Mi Billetera & Comisiones</span>
+            <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-400">
+              USD Ecuador 🇪🇨
+            </span>
+          </h1>
+          <p className="text-xs text-neutral-400 mt-0.5">
+            Gestiona tus ganancias acumuladas por ventas contra entrega y retiros.
+          </p>
+        </div>
+        <StreakBadge
+          streakCount={seller.streakCount || 0}
+          sellerRank={seller.sellerRank || "NOVATO"}
+        />
       </div>
+
+      {/* Banner Psicológico de Aversión a la Pérdida */}
+      <LossAversionBanner orders={orders} />
 
       {/* Tarjetas de Balance */}
       <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-neutral-900/90 to-neutral-950 p-5 shadow-xl shadow-emerald-950/20">
@@ -131,14 +152,75 @@ export default function BilleteraPage() {
           Comisiones confirmadas tras la entrega del courier a tus clientes.
         </p>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          disabled={seller.balanceAvailable < 5.0}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 font-bold text-black shadow-lg shadow-emerald-500/20 transition hover:opacity-95 active:scale-[0.98] disabled:opacity-40"
+        {/* Candado de Retiro Mínimo $20 USD */}
+        {!canWithdraw ? (
+          <div className="mt-4 space-y-2 rounded-xl border border-amber-500/30 bg-neutral-900/90 p-3">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-neutral-300 flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-amber-400" />
+                Mínimo de Retiro: $20.00 USD
+              </span>
+              <span className="font-bold text-amber-400">
+                ${seller.balanceAvailable.toFixed(2)} / $20.00
+              </span>
+            </div>
+
+            <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-emerald-400 transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-amber-200/90">
+                Te faltan <strong className="font-bold text-amber-300">${missingAmount.toFixed(2)} USD</strong> para retirar
+              </span>
+              <span className="text-neutral-500 font-medium">{progressPercent}%</span>
+            </div>
+
+            <button
+              disabled
+              className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-800 bg-neutral-800/60 py-2.5 text-xs font-bold text-neutral-400 cursor-not-allowed"
+            >
+              <Lock className="h-4 w-4" />
+              <span>Faltan ${missingAmount.toFixed(2)} USD para Retirar</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 font-bold text-black shadow-lg shadow-emerald-500/20 transition hover:opacity-95 active:scale-[0.98]"
+          >
+            <ArrowDownLeft className="h-5 w-5" />
+            <span>Solicitar Retiro (${seller.balanceAvailable.toFixed(2)} USD)</span>
+          </button>
+        )}
+      </div>
+
+      {/* Widget Red de Referidos */}
+      <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-neutral-900 to-neutral-950 p-4 shadow-lg flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
+            <Users className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>Gana +$5.00 USD por cada amigo</span>
+              <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[9px] text-indigo-300 font-bold">Bono Red</span>
+            </div>
+            <p className="text-[11px] text-neutral-400">
+              Código: <strong className="text-emerald-400 font-mono">{seller.referralCode}</strong> &bull; {seller.referredCount || 0} amigos
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/equipo"
+          className="flex items-center gap-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-xs font-bold text-white transition active:scale-95"
         >
-          <ArrowDownLeft className="h-5 w-5" />
-          <span>Solicitar Retiro</span>
-        </button>
+          <span>Invitar</span>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
       {/* Sub-Balances: Pendiente y Retirado */}
@@ -322,7 +404,7 @@ export default function BilleteraPage() {
               <span>Solicitar Retiro de Comisiones</span>
             </h3>
             <p className="mt-1 text-xs text-neutral-400">
-              Saldo disponible: <strong className="text-emerald-400">${seller.balanceAvailable.toFixed(2)} USD</strong> (Mínimo de retiro: $5.00)
+              Saldo disponible: <strong className="text-emerald-400">${seller.balanceAvailable.toFixed(2)} USD</strong> (Mínimo de retiro: $20.00 USD)
             </p>
 
             <form onSubmit={handleWithdrawSubmit} className="mt-4 space-y-3 text-xs">
@@ -336,10 +418,10 @@ export default function BilleteraPage() {
                   <input
                     type="number"
                     step="0.01"
-                    min="5.00"
+                    min="20.00"
                     max={seller.balanceAvailable}
                     required
-                    placeholder="0.00"
+                    placeholder="20.00"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
                     className="w-full rounded-xl border border-neutral-800 bg-neutral-900 py-2.5 pl-8 pr-3 text-sm font-bold text-white outline-none focus:border-emerald-500"

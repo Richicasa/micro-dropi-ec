@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import ToastContainer from "@/components/Toast";
 import SimulateWebhookDrawer from "@/components/SimulateWebhookDrawer";
+import LiveSalesToast from "@/components/LiveSalesToast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +52,7 @@ export default function RootLayout({
           {children}
         </main>
 
+        <LiveSalesToast />
         <BottomNav />
         <ToastContainer />
         <SimulateWebhookDrawer />

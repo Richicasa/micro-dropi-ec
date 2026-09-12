@@ -119,8 +119,48 @@ export const INITIAL_SELLER: SellerProfile = {
   balancePending: 28.29,
   balanceAvailable: 54.80,
   balanceWithdrawn: 120.00,
-  createdAt: "2026-09-01T10:00:00Z"
+  createdAt: "2026-09-01T10:00:00Z",
+
+  // Gamificación, Rango y Referidos
+  referralCode: "DROPI-CM98",
+  streakCount: 4,
+  lastOrderDate: new Date().toISOString().split("T")[0],
+  welcomeBonusAwarded: true,
+  sellerRank: "VERIFICADO",
+  totalReferralEarnings: 15.00,
+  referredCount: 3
 };
+
+export const INITIAL_REFERRALS = [
+  {
+    id: "ref-01",
+    name: "Mariana Salazar",
+    joinedDate: "Hace 5 días",
+    firstOrderDelivered: true,
+    bonusEarned: 5.00
+  },
+  {
+    id: "ref-02",
+    name: "Kevin Alarcón",
+    joinedDate: "Hace 3 días",
+    firstOrderDelivered: true,
+    bonusEarned: 5.00
+  },
+  {
+    id: "ref-03",
+    name: "Sofía Paredes",
+    joinedDate: "Hace 1 día",
+    firstOrderDelivered: true,
+    bonusEarned: 5.00
+  },
+  {
+    id: "ref-04",
+    name: "Jorge Macías",
+    joinedDate: "Hoy",
+    firstOrderDelivered: false,
+    bonusEarned: 0.00
+  }
+];
 
 export const INITIAL_ORDERS: Order[] = [
   {
@@ -220,6 +260,7 @@ class MemoryStore {
   private seller: SellerProfile = INITIAL_SELLER;
   private orders: Order[] = INITIAL_ORDERS;
   private payouts: PayoutRequest[] = INITIAL_PAYOUTS;
+  private referrals = INITIAL_REFERRALS;
   private isInitialized = false;
 
   private loadFromStorage() {
@@ -230,11 +271,13 @@ class MemoryStore {
       const storedOrders = localStorage.getItem("microdropi_orders");
       const storedPayouts = localStorage.getItem("microdropi_payouts");
       const storedProducts = localStorage.getItem("microdropi_products");
+      const storedReferrals = localStorage.getItem("microdropi_referrals");
 
       if (storedSeller) this.seller = JSON.parse(storedSeller);
       if (storedOrders) this.orders = JSON.parse(storedOrders);
       if (storedPayouts) this.payouts = JSON.parse(storedPayouts);
       if (storedProducts) this.products = JSON.parse(storedProducts);
+      if (storedReferrals) this.referrals = JSON.parse(storedReferrals);
       this.isInitialized = true;
     } catch {
       // Ignorar errores de localStorage
@@ -248,6 +291,7 @@ class MemoryStore {
       localStorage.setItem("microdropi_orders", JSON.stringify(this.orders));
       localStorage.setItem("microdropi_payouts", JSON.stringify(this.payouts));
       localStorage.setItem("microdropi_products", JSON.stringify(this.products));
+      localStorage.setItem("microdropi_referrals", JSON.stringify(this.referrals));
     } catch {
       // Ignorar
     }
@@ -276,6 +320,11 @@ class MemoryStore {
   getPayouts(): PayoutRequest[] {
     this.loadFromStorage();
     return [...this.payouts];
+  }
+
+  getReferrals() {
+    this.loadFromStorage();
+    return [...this.referrals];
   }
 
   createOrder(orderData: Omit<Order, "id" | "sellerId" | "trackingNumber" | "createdAt" | "status">): Order {
@@ -330,6 +379,23 @@ class MemoryStore {
       // Mover de pendiente a disponible
       this.seller.balancePending = Math.max(0, Number((this.seller.balancePending - order.sellerCommission).toFixed(2)));
       this.seller.balanceAvailable = Number((this.seller.balanceAvailable + order.sellerCommission).toFixed(2));
+
+      // 1. Actualizar Rango según entregas acumuladas
+      const deliveredCount = this.orders.filter((o) => o.status === "ENTREGADO").length;
+      if (deliveredCount >= 20) {
+        this.seller.sellerRank = "ELITE";
+      } else if (deliveredCount >= 5) {
+        this.seller.sellerRank = "VERIFICADO";
+      } else {
+        this.seller.sellerRank = "NOVATO";
+      }
+
+      // 2. Actualizar Racha Diaria (Streak)
+      const today = new Date().toISOString().split("T")[0];
+      if (this.seller.lastOrderDate !== today) {
+        this.seller.streakCount = (this.seller.streakCount || 0) + 1;
+        this.seller.lastOrderDate = today;
+      }
     } else if (newStatus === "DEVUELTO" && oldStatus !== "DEVUELTO") {
       order.returnedAt = new Date().toISOString();
       // Eliminar de pendiente y devolver stock
@@ -351,7 +417,7 @@ class MemoryStore {
   requestPayout(amount: number): PayoutRequest {
     this.loadFromStorage();
     if (amount <= 0) throw new Error("El monto de retiro debe ser mayor a cero");
-    if (amount < 5.0) throw new Error("El retiro mínimo en Ecuador es de $5.00 USD");
+    if (amount < 20.0) throw new Error("El retiro mínimo en Ecuador es de $20.00 USD");
     if (amount > this.seller.balanceAvailable) {
       throw new Error(`Saldo disponible insuficiente. Tienes $${this.seller.balanceAvailable.toFixed(2)} USD`);
     }

@@ -6,6 +6,7 @@ import { Wallet, PackageCheck, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { store } from "@/lib/store";
 import { SellerProfile } from "@/lib/types";
+import StreakBadge from "@/components/StreakBadge";
 
 export default function Header() {
   const [seller, setSeller] = useState<SellerProfile | null>(null);
@@ -45,12 +46,17 @@ export default function Header() {
           </div>
         </Link>
 
-        {/* Live Balance Chips */}
+        {/* Live Balance Chips & Streak */}
         {seller && (
           <div className="flex items-center gap-2">
+            <StreakBadge
+              streakCount={seller.streakCount || 0}
+              sellerRank={seller.sellerRank || "NOVATO"}
+            />
+
             <Link
               href="/billetera"
-              className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3 py-1 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-900/40"
+              className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-1 text-xs font-semibold text-emerald-400 transition hover:bg-emerald-900/40"
               title="Saldo disponible para retiro inmediato"
             >
               <Wallet className="h-3.5 w-3.5" />
@@ -59,7 +65,7 @@ export default function Header() {
             
             <Link
               href="/pedidos"
-              className="hidden sm:flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-950/40 px-2.5 py-1 text-xs font-medium text-amber-300"
+              className="hidden sm:flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-950/40 px-2 py-1 text-xs font-medium text-amber-300"
               title="Saldo en tránsito (cobro pendiente en entrega)"
             >
               <PackageCheck className="h-3.5 w-3.5" />
