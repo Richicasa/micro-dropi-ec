@@ -7,6 +7,10 @@ import { ShoppingBag, PlusCircle, Package, Wallet, LayoutDashboard } from "lucid
 export default function BottomNav() {
   const pathname = usePathname();
 
+  if (pathname === "/login") {
+    return null;
+  }
+
   const navItems = [
     {
       label: "Inicio",

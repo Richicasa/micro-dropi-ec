@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Wallet, PackageCheck, Zap } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Wallet, PackageCheck, Zap, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { store } from "@/lib/store";
 import { SellerProfile } from "@/lib/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 import StreakBadge from "@/components/StreakBadge";
 
 export default function Header() {
   const [seller, setSeller] = useState<SellerProfile | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     setSeller(store.getSeller());
@@ -21,11 +23,32 @@ export default function Header() {
 
     window.addEventListener("storage", handleUpdate);
     window.addEventListener("microdropi_update", handleUpdate);
+    window.addEventListener("microdropi_auth_change", handleUpdate);
     return () => {
       window.removeEventListener("storage", handleUpdate);
       window.removeEventListener("microdropi_update", handleUpdate);
+      window.removeEventListener("microdropi_auth_change", handleUpdate);
     };
   }, [pathname]);
+
+  if (pathname === "/login") {
+    return null;
+  }
+
+  const handleLogout = async () => {
+    try {
+      const supabase = getSupabaseBrowserClient();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch {
+      // Ignorar
+    }
+    // Eliminar cookie de sesión
+    document.cookie = "dropi_session=; path=/; max-age=0; SameSite=Lax";
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-neutral-800 bg-neutral-950/90 backdrop-blur-md">
@@ -46,7 +69,7 @@ export default function Header() {
           </div>
         </Link>
 
-        {/* Live Balance Chips & Streak */}
+        {/* Live Balance Chips, Streak & Logout */}
         {seller && (
           <div className="flex items-center gap-2">
             <StreakBadge
@@ -71,6 +94,14 @@ export default function Header() {
               <PackageCheck className="h-3.5 w-3.5" />
               <span>${seller.balancePending.toFixed(2)}</span>
             </Link>
+
+            <button
+              onClick={handleLogout}
+              className="rounded-lg p-1 text-neutral-500 hover:text-rose-400 hover:bg-neutral-900 transition"
+              title="Cerrar sesión"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         )}
       </div>

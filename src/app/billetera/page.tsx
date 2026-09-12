@@ -19,8 +19,9 @@ import {
   Sparkles
 } from "lucide-react";
 import { store } from "@/lib/store";
-import { SellerProfile, PayoutRequest, BankEcuador } from "@/lib/types";
+import { SellerProfile, PayoutRequest, BankEcuador, Order } from "@/lib/types";
 import { showToast } from "@/components/Toast";
+import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 import WeeklyChallengeCard from "@/components/WeeklyChallengeCard";
 import LossAversionBanner from "@/components/LossAversionBanner";
 import StreakBadge from "@/components/StreakBadge";
@@ -28,7 +29,8 @@ import StreakBadge from "@/components/StreakBadge";
 export default function BilleteraPage() {
   const [seller, setSeller] = useState<SellerProfile>(store.getSeller());
   const [payouts, setPayouts] = useState<PayoutRequest[]>(store.getPayouts());
-  const [orders, setOrders] = useState(store.getOrders());
+  const [orders, setOrders] = useState<Order[]>(store.getOrders());
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState<string>("");
@@ -42,22 +44,146 @@ export default function BilleteraPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadDynamicUserData() {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        if (supabase && isSupabaseConfigured) {
+          const { data: { user } } = await supabase.auth.getUser();
+
+          if (user) {
+            // 1. Obtener fila del comisionista en profiles
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .single();
+
+            if (profile && isMounted) {
+              const mappedSeller: SellerProfile = {
+                id: profile.id,
+                fullName: profile.full_name,
+                phoneWhatsapp: profile.phone_whatsapp,
+                cedula: profile.cedula || "",
+                role: profile.role || "seller",
+                bankName: profile.bank_name || "BANCO_PICHINCHA",
+                accountType: profile.account_type || "AHORROS",
+                accountNumber: profile.account_number || "",
+                accountHolderName: profile.account_holder_name || profile.full_name,
+                accountHolderCedula: profile.account_holder_cedula || profile.cedula || "",
+                balancePending: Number(profile.balance_pending ?? 0),
+                balanceAvailable: Number(profile.balance_available ?? 5.00),
+                balanceWithdrawn: Number(profile.balance_withdrawn ?? 0),
+                createdAt: profile.created_at,
+                referralCode: profile.referral_code || "DROPI-EC",
+                streakCount: profile.streak_count ?? 0,
+                welcomeBonusAwarded: profile.welcome_bonus_awarded ?? true,
+                sellerRank: profile.seller_rank || "NOVATO",
+                totalReferralEarnings: Number(profile.total_referral_earnings ?? 0),
+                referredCount: Number(profile.referred_count ?? 0),
+              };
+              setSeller(mappedSeller);
+              setBankName(mappedSeller.bankName);
+              setAccountNumber(mappedSeller.accountNumber);
+              setHolderName(mappedSeller.accountHolderName);
+              setHolderCedula(mappedSeller.accountHolderCedula);
+            }
+
+            // 2. Obtener órdenes reales del vendedor
+            const { data: dbOrders } = await supabase
+              .from("orders")
+              .select("*, product:products(*)")
+              .eq("seller_id", user.id)
+              .order("created_at", { ascending: false });
+
+            if (dbOrders && isMounted) {
+              const mappedOrders: Order[] = dbOrders.map((o: any) => ({
+                id: o.id,
+                sellerId: o.seller_id,
+                productId: o.product_id,
+                product: o.product,
+                quantity: o.quantity,
+                trackingNumber: o.tracking_number,
+                courierName: o.courier_name,
+                status: o.status,
+                clientName: o.client_name,
+                clientCedula: o.client_cedula,
+                clientPhone: o.client_phone,
+                clientAddress: o.client_address,
+                province: o.province,
+                canton: o.canton,
+                deliveryReference: o.delivery_reference,
+                totalToCollect: Number(o.total_to_collect),
+                supplierCost: Number(o.supplier_cost),
+                deliveryCost: Number(o.delivery_cost),
+                sellerCommission: Number(o.seller_commission),
+                courierStatusDetail: o.courier_status_detail,
+                internalNotes: o.internal_notes,
+                createdAt: o.created_at,
+                deliveredAt: o.delivered_at,
+              }));
+              setOrders(mappedOrders);
+            }
+
+            // 3. Obtener solicitudes de retiro
+            const { data: dbPayouts } = await supabase
+              .from("payouts")
+              .select("*")
+              .eq("seller_id", user.id)
+              .order("created_at", { ascending: false });
+
+            if (dbPayouts && isMounted) {
+              const mappedPayouts: PayoutRequest[] = dbPayouts.map((p: any) => ({
+                id: p.id,
+                sellerId: p.seller_id,
+                amount: Number(p.amount),
+                status: p.status,
+                bankDetails: p.bank_details,
+                proofUrl: p.proof_url,
+                rejectionReason: p.rejection_reason,
+                createdAt: p.created_at,
+                processedAt: p.processed_at,
+              }));
+              setPayouts(mappedPayouts);
+            }
+
+            if (isMounted) setIsLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Error cargando datos de Supabase:", err);
+      }
+
+      // Fallback limpio al store
+      if (isMounted) {
+        const s = store.getSeller();
+        setSeller(s);
+        setPayouts(store.getPayouts());
+        setOrders(store.getOrders());
+        setBankName(s.bankName);
+        setAccountNumber(s.accountNumber);
+        setHolderName(s.accountHolderName);
+        setHolderCedula(s.accountHolderCedula);
+        setIsLoading(false);
+      }
+    }
+
+    loadDynamicUserData();
+
     const refresh = () => {
-      const s = store.getSeller();
-      setSeller(s);
-      setPayouts(store.getPayouts());
-      setOrders(store.getOrders());
-      setBankName(s.bankName);
-      setAccountNumber(s.accountNumber);
-      setHolderName(s.accountHolderName);
-      setHolderCedula(s.accountHolderCedula);
+      loadDynamicUserData();
     };
 
     window.addEventListener("storage", refresh);
     window.addEventListener("microdropi_update", refresh);
+    window.addEventListener("microdropi_auth_change", refresh);
     return () => {
+      isMounted = false;
       window.removeEventListener("storage", refresh);
       window.removeEventListener("microdropi_update", refresh);
+      window.removeEventListener("microdropi_auth_change", refresh);
     };
   }, []);
 
@@ -66,7 +192,7 @@ export default function BilleteraPage() {
   const missingAmount = Math.max(0, Number((MIN_WITHDRAWAL - seller.balanceAvailable).toFixed(2)));
   const progressPercent = Math.min(100, Math.round((seller.balanceAvailable / MIN_WITHDRAWAL) * 100));
 
-  const handleWithdrawSubmit = (e: React.FormEvent) => {
+  const handleWithdrawSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const amount = parseFloat(withdrawAmount);
 
@@ -92,7 +218,30 @@ export default function BilleteraPage() {
 
     setIsSubmitting(true);
     try {
+      const supabase = getSupabaseBrowserClient();
+      if (supabase && isSupabaseConfigured) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { error: payoutError } = await supabase.from("payouts").insert({
+            seller_id: user.id,
+            amount: amount,
+            status: "SOLICITADO",
+            bank_details: {
+              bankName,
+              accountType,
+              accountNumber,
+              accountHolderName: holderName,
+              accountHolderCedula: holderCedula
+            }
+          });
+
+          if (payoutError) throw payoutError;
+        }
+      }
+
+      // También registrar en store local para actualización reactiva inmediata
       store.requestPayout(amount);
+
       showToast(`¡Solicitud de retiro por $${amount.toFixed(2)} USD enviada a tesorería!`, "success");
       setIsModalOpen(false);
       setWithdrawAmount("");

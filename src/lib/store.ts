@@ -107,152 +107,34 @@ Olvídate de pagar pulidas caras en talleres. Con NanoTech:
 
 export const INITIAL_SELLER: SellerProfile = {
   id: "seller-ecuador-01",
-  fullName: "Carlos Mendoza (Comisionista)",
+  fullName: "Comisionista Activo",
   phoneWhatsapp: "+593998765432",
   cedula: "1723456789",
   role: "seller",
   bankName: "BANCO_PICHINCHA",
   accountType: "AHORROS",
-  accountNumber: "2201948572",
-  accountHolderName: "Carlos Mendoza",
-  accountHolderCedula: "1723456789",
-  balancePending: 28.29,
-  balanceAvailable: 54.80,
-  balanceWithdrawn: 120.00,
+  accountNumber: "",
+  accountHolderName: "",
+  accountHolderCedula: "",
+  balancePending: 0.00,
+  balanceAvailable: 5.00, // Bono de bienvenida inicial de $5.00 USD
+  balanceWithdrawn: 0.00,
   createdAt: "2026-09-01T10:00:00Z",
 
   // Gamificación, Rango y Referidos
-  referralCode: "DROPI-CM98",
-  streakCount: 4,
-  lastOrderDate: new Date().toISOString().split("T")[0],
+  referralCode: "DROPI-EC01",
+  streakCount: 0,
   welcomeBonusAwarded: true,
-  sellerRank: "VERIFICADO",
-  totalReferralEarnings: 15.00,
-  referredCount: 3
+  sellerRank: "NOVATO",
+  totalReferralEarnings: 0.00,
+  referredCount: 0
 };
 
-export const INITIAL_REFERRALS = [
-  {
-    id: "ref-01",
-    name: "Mariana Salazar",
-    joinedDate: "Hace 5 días",
-    firstOrderDelivered: true,
-    bonusEarned: 5.00
-  },
-  {
-    id: "ref-02",
-    name: "Kevin Alarcón",
-    joinedDate: "Hace 3 días",
-    firstOrderDelivered: true,
-    bonusEarned: 5.00
-  },
-  {
-    id: "ref-03",
-    name: "Sofía Paredes",
-    joinedDate: "Hace 1 día",
-    firstOrderDelivered: true,
-    bonusEarned: 5.00
-  },
-  {
-    id: "ref-04",
-    name: "Jorge Macías",
-    joinedDate: "Hoy",
-    firstOrderDelivered: false,
-    bonusEarned: 0.00
-  }
-];
+export const INITIAL_REFERRALS: { id: string; name: string; joinedDate: string; firstOrderDelivered: boolean; bonusEarned: number; }[] = [];
 
-export const INITIAL_ORDERS: Order[] = [
-  {
-    id: "ord-ec-101",
-    sellerId: "seller-ecuador-01",
-    productId: "11111111-1111-1111-1111-111111111111",
-    product: INITIAL_PRODUCTS[0],
-    quantity: 1,
-    trackingNumber: "LAAR-EC-982143",
-    courierName: "Laar Courier",
-    status: "EN_TRANSITO",
-    clientName: "Valeria Morales",
-    clientCedula: "0923485712",
-    clientPhone: "+593984112233",
-    clientAddress: "Av. 9 de Octubre y Malecón, Edificio El Rosado Piso 4",
-    province: "Guayas",
-    canton: "Guayaquil",
-    deliveryReference: "Junto a la farmacia Fybeca",
-    totalToCollect: 24.99,
-    supplierCost: 7.50,
-    deliveryCost: 3.50,
-    sellerCommission: 13.99,
-    courierStatusDetail: "Paquete en móvil de reparto - Guayaquil Norte",
-    createdAt: "2026-09-11T14:30:00Z"
-  },
-  {
-    id: "ord-ec-102",
-    sellerId: "seller-ecuador-01",
-    productId: "33333333-3333-3333-3333-333333333333",
-    product: INITIAL_PRODUCTS[2],
-    quantity: 1,
-    trackingNumber: "SRV-EC-554219",
-    courierName: "Servientrega",
-    status: "NOVEDAD",
-    clientName: "David Zambrano",
-    clientCedula: "1719847261",
-    clientPhone: "+593992348877",
-    clientAddress: "Calle Los Pinos N45-12 y Av. América",
-    province: "Pichincha",
-    canton: "Quito",
-    deliveryReference: "Portón blanco frente al parque",
-    totalToCollect: 26.00,
-    supplierCost: 8.20,
-    deliveryCost: 3.50,
-    sellerCommission: 14.30,
-    courierStatusDetail: "Dirección incompleta / Cliente no contesta llamadas",
-    createdAt: "2026-09-10T09:15:00Z"
-  },
-  {
-    id: "ord-ec-103",
-    sellerId: "seller-ecuador-01",
-    productId: "22222222-2222-2222-2222-222222222222",
-    product: INITIAL_PRODUCTS[1],
-    quantity: 1,
-    trackingNumber: "LAAR-EC-772910",
-    courierName: "Laar Courier",
-    status: "ENTREGADO",
-    clientName: "Andrea Cárdenas",
-    clientCedula: "0104829102",
-    clientPhone: "+593987119944",
-    clientAddress: "Calle Larga y Huayna Cápac, Casa 3",
-    province: "Azuay",
-    canton: "Cuenca",
-    deliveryReference: "A una cuadra de la iglesia",
-    totalToCollect: 22.50,
-    supplierCost: 6.80,
-    deliveryCost: 3.50,
-    sellerCommission: 12.20,
-    courierStatusDetail: "Entregado y cobrado en efectivo $22.50",
-    createdAt: "2026-09-08T11:20:00Z",
-    deliveredAt: "2026-09-10T16:45:00Z"
-  }
-];
+export const INITIAL_ORDERS: Order[] = [];
 
-export const INITIAL_PAYOUTS: PayoutRequest[] = [
-  {
-    id: "pay-ec-01",
-    sellerId: "seller-ecuador-01",
-    amount: 120.00,
-    status: "PAGADO",
-    bankDetails: {
-      bankName: "BANCO_PICHINCHA",
-      accountType: "AHORROS",
-      accountNumber: "2201948572",
-      accountHolderName: "Carlos Mendoza",
-      accountHolderCedula: "1723456789"
-    },
-    proofUrl: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop",
-    createdAt: "2026-09-05T10:00:00Z",
-    processedAt: "2026-09-05T14:30:00Z"
-  }
-];
+export const INITIAL_PAYOUTS: PayoutRequest[] = [];
 
 // Helper local para persistir en memoria / localStorage
 class MemoryStore {
