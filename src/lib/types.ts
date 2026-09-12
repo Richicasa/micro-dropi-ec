@@ -30,6 +30,7 @@ export interface SellerProfile {
   id: string;
   fullName: string;
   phoneWhatsapp: string;
+  city?: string;
   cedula?: string;
   role: "seller" | "warehouse" | "admin";
   bankName: BankEcuador;

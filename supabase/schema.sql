@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
     phone_whatsapp TEXT NOT NULL,
+    city TEXT DEFAULT 'Ecuador',
     cedula VARCHAR(10),
     role TEXT NOT NULL DEFAULT 'seller' CHECK (role IN ('seller', 'warehouse', 'admin')),
     
@@ -213,6 +214,7 @@ BEGIN
         id, 
         full_name, 
         phone_whatsapp, 
+        city,
         role, 
         referral_code, 
         referred_by, 
@@ -224,6 +226,7 @@ BEGIN
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'full_name', 'Vendedor Micro-Dropi'),
         COALESCE(NEW.raw_user_meta_data->>'phone_whatsapp', '+593983741834'),
+        COALESCE(NEW.raw_user_meta_data->>'city', 'Ecuador'),
         'seller',
         v_referral_code,
         v_sponsor_id,

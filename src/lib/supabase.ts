@@ -14,10 +14,31 @@ export const isSupabaseConfigured = Boolean(
   supabaseUrl.startsWith("http")
 );
 
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+
+export const isSupabaseAdminConfigured = Boolean(
+  isSupabaseConfigured &&
+  serviceRoleKey &&
+  !serviceRoleKey.includes("tu-service-role")
+);
+
 // Cliente estándar para Server Actions y scripts de Node.js
 export const supabase = isSupabaseConfigured
   ? createSupabaseClient(supabaseUrl, supabaseAnonKey)
   : null;
+
+// Cliente Admin (Service Role) con privilegios elevados para auth y backend
+export function getSupabaseAdminClient() {
+  if (!isSupabaseAdminConfigured) {
+    return null;
+  }
+  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
 // Cliente SSR con sincronización automática de cookies para navegador
 export function getSupabaseBrowserClient() {
@@ -26,3 +47,4 @@ export function getSupabaseBrowserClient() {
   }
   return createBrowserClient(supabaseUrl, supabaseAnonKey);
 }
+
