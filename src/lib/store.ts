@@ -108,7 +108,7 @@ Olvídate de pagar pulidas caras en talleres. Con NanoTech:
 export const INITIAL_SELLER: SellerProfile = {
   id: "seller-ecuador-01",
   fullName: "Comisionista Activo",
-  phoneWhatsapp: "+593998765432",
+  phoneWhatsapp: "+593983741834",
   cedula: "1723456789",
   role: "seller",
   bankName: "BANCO_PICHINCHA",

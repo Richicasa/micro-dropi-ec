@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const WHATSAPP_CONTACT = process.env.NEXT_PUBLIC_WHATSAPP_CONTACT || "593998765432";
+  const WHATSAPP_CONTACT = process.env.NEXT_PUBLIC_WHATSAPP_CONTACT || "593983741834";
   const postulationMessage = encodeURIComponent(
     "Hola, quiero postularme como vendedor comisionista en Micro-Dropi EC"
   );

@@ -223,7 +223,7 @@ BEGIN
     VALUES (
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'full_name', 'Vendedor Micro-Dropi'),
-        COALESCE(NEW.raw_user_meta_data->>'phone_whatsapp', '+593900000000'),
+        COALESCE(NEW.raw_user_meta_data->>'phone_whatsapp', '+593983741834'),
         'seller',
         v_referral_code,
         v_sponsor_id,
