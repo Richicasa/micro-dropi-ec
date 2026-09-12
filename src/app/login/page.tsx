@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Zap, Lock, Mail, AlertCircle, ArrowRight, MessageCircle, ShieldCheck } from "lucide-react";
+import { Zap, Lock, Mail, AlertCircle, ArrowRight, MessageCircle, ShieldCheck, Key } from "lucide-react";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 import { store } from "@/lib/store";
 
@@ -64,9 +64,16 @@ export default function LoginPage() {
           return;
         }
       } else {
-        // 2. Acceso en modo local / asignado (cuando no se han configurado llaves de Supabase en .env.local)
-        // Permite acceso controlado y testeo del MVP
-        if (cleanPassword.length < 4) {
+        // 2. Acceso en modo asignado / local (sin Supabase remoto conectado)
+        const isMasterUser = cleanEmail.toLowerCase() === "richi@microdropi.ec" || cleanEmail.toLowerCase() === "admin@microdropi.ec";
+        
+        if (isMasterUser) {
+          if (cleanPassword !== "Ecuador2026*") {
+            setErrorMessage("Contraseña incorrecta. Tu clave asignada es Ecuador2026*");
+            setIsLoading(false);
+            return;
+          }
+        } else if (cleanPassword.length < 4) {
           setErrorMessage("La contraseña debe tener al menos 4 caracteres.");
           setIsLoading(false);
           return;
@@ -75,10 +82,21 @@ export default function LoginPage() {
         // Guardar sesión en cookies y store local
         document.cookie = `dropi_session=${encodeURIComponent(cleanEmail)}; path=/; max-age=604800; SameSite=Lax`;
         
-        // Actualizar datos del vendedor si es la primera vez
+        // Actualizar datos del vendedor en localStorage
         const currentSeller = store.getSeller();
         if (currentSeller) {
-          currentSeller.fullName = cleanEmail.split("@")[0].toUpperCase() + " (Comisionista)";
+          if (isMasterUser) {
+            currentSeller.id = "seller-richi-01";
+            currentSeller.fullName = "Richi Casa";
+            currentSeller.phoneWhatsapp = "+593983741834";
+            currentSeller.role = "admin";
+            currentSeller.referralCode = "DROPI-RICHI";
+            currentSeller.sellerRank = "VERIFICADO";
+            currentSeller.balanceAvailable = currentSeller.balanceAvailable > 0 ? currentSeller.balanceAvailable : 5.00;
+          } else {
+            currentSeller.fullName = cleanEmail.split("@")[0].toUpperCase() + " (Comisionista)";
+            currentSeller.phoneWhatsapp = "+593983741834";
+          }
           localStorage.setItem("microdropi_seller", JSON.stringify(currentSeller));
         }
 
@@ -187,6 +205,36 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Tarjeta de Credenciales Asignadas para Richi */}
+          <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+                <Key className="h-3.5 w-3.5 text-emerald-400" />
+                Credenciales Asignadas:
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("richi@microdropi.ec");
+                  setPassword("Ecuador2026*");
+                }}
+                className="rounded-lg bg-emerald-500/20 px-2 py-1 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/30 transition active:scale-95"
+              >
+                Autocompletar
+              </button>
+            </div>
+            <div className="mt-2 font-mono text-[11px] text-neutral-300 space-y-1 bg-neutral-950/60 p-2 rounded-lg border border-neutral-800">
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Email:</span>
+                <span className="text-white font-bold">richi@microdropi.ec</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">Clave:</span>
+                <span className="text-emerald-400 font-bold">Ecuador2026*</span>
+              </div>
+            </div>
+          </div>
 
           {/* Separador */}
           <div className="relative my-6">
