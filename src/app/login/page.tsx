@@ -9,7 +9,6 @@ import {
   ArrowRight,
   MessageCircle,
   ShieldCheck,
-  Key,
   Phone,
   UserPlus,
   Check,
@@ -375,36 +374,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Tarjeta de Acceso Rápido Maestro (Richi Casa) */}
-          <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-emerald-300 flex items-center gap-1.5">
-                <Key className="h-3.5 w-3.5 text-emerald-400" />
-                Credenciales Maestras:
-              </span>
-              <button
-                type="button"
-                onClick={() => {
-                  setPhoneInput("0983741834");
-                  setPassword("Ecuador2026*");
-                }}
-                className="rounded-lg bg-emerald-500/20 px-2 py-1 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/30 transition active:scale-95"
-              >
-                Autocompletar
-              </button>
-            </div>
-            <div className="mt-2 font-mono text-[11px] text-neutral-300 space-y-1 bg-neutral-950/60 p-2 rounded-lg border border-neutral-800">
-              <div className="flex justify-between">
-                <span className="text-neutral-500">WhatsApp:</span>
-                <span className="text-white font-bold">0983741834</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Clave:</span>
-                <span className="text-emerald-400 font-bold">Ecuador2026*</span>
-              </div>
-            </div>
-          </div>
 
           {/* Separador */}
           <div className="relative my-6">
