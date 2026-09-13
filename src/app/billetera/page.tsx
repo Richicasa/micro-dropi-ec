@@ -13,18 +13,13 @@ import {
   ExternalLink,
   ShieldCheck,
   CreditCard,
-  Lock,
-  Users,
-  ArrowRight,
-  Sparkles
+  Lock
 } from "lucide-react";
 import { store } from "@/lib/store";
 import { SellerProfile, PayoutRequest, BankEcuador, Order } from "@/lib/types";
 import { showToast } from "@/components/Toast";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase";
 import WeeklyChallengeCard from "@/components/WeeklyChallengeCard";
-import LossAversionBanner from "@/components/LossAversionBanner";
-import StreakBadge from "@/components/StreakBadge";
 
 export default function BilleteraPage() {
   const [seller, setSeller] = useState<SellerProfile>(store.getSeller());
@@ -290,7 +285,7 @@ export default function BilleteraPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-4 px-4 sm:max-w-xl md:max-w-2xl">
-      {/* Header */}
+      {/* 1. Header con Saldo Disponible y Saldo Pendiente */}
       <div className="pt-2 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
@@ -303,39 +298,69 @@ export default function BilleteraPage() {
             Gestiona tus ganancias acumuladas por ventas contra entrega y retiros.
           </p>
         </div>
-        <StreakBadge
-          streakCount={seller.streakCount || 0}
-          sellerRank={seller.sellerRank || "NOVATO"}
-        />
+        {seller.balanceWithdrawn > 0 && (
+          <div className="hidden sm:flex flex-col items-end">
+            <span className="text-[10px] text-neutral-500 font-medium">Total Pagado</span>
+            <span className="text-xs font-bold text-neutral-300">${seller.balanceWithdrawn.toFixed(2)} USD</span>
+          </div>
+        )}
       </div>
 
-      {/* Banner Psicológico de Aversión a la Pérdida */}
-      <LossAversionBanner orders={orders} />
+      {/* Tarjetas de Saldo Disponible y Saldo Pendiente */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Saldo Disponible */}
+        <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-neutral-900/90 to-neutral-950 p-5 shadow-xl shadow-emerald-950/20 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                <span>DISPONIBLE PARA RETIRO</span>
+              </div>
+              <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                Liquidado
+              </span>
+            </div>
 
-      {/* Tarjetas de Balance */}
-      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-neutral-900/90 to-neutral-950 p-5 shadow-xl shadow-emerald-950/20">
-        <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
-          <div className="flex items-center gap-2">
-            <Wallet className="h-5 w-5" />
-            <span>DISPONIBLE PARA RETIRO</span>
+            <div className="mt-3 text-3xl sm:text-4xl font-black tracking-tight text-white">
+              ${seller.balanceAvailable.toFixed(2)}{" "}
+              <span className="text-xs font-medium text-neutral-400">USD</span>
+            </div>
           </div>
-          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-            Liquidado
-          </span>
+
+          <p className="mt-2 text-xs text-neutral-400">
+            Comisiones listas tras la confirmación de entrega del courier.
+          </p>
         </div>
 
-        <div className="mt-3 text-3xl sm:text-4xl font-black tracking-tight text-white">
-          ${seller.balanceAvailable.toFixed(2)}{" "}
-          <span className="text-xs font-medium text-neutral-400">USD</span>
+        {/* Saldo Pendiente */}
+        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-950/30 via-neutral-900/90 to-neutral-950 p-5 shadow-xl shadow-amber-950/10 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-semibold text-amber-400">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                <span>PENDIENTE DE ENTREGA</span>
+              </div>
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300">
+                En Tránsito COD
+              </span>
+            </div>
+
+            <div className="mt-3 text-3xl sm:text-4xl font-black tracking-tight text-white">
+              ${seller.balancePending.toFixed(2)}{" "}
+              <span className="text-xs font-medium text-neutral-400">USD</span>
+            </div>
+          </div>
+
+          <p className="mt-2 text-xs text-neutral-400">
+            Se liberan a tu Disponible automáticamente al entregarse el paquete.
+          </p>
         </div>
+      </div>
 
-        <p className="mt-1 text-xs text-neutral-400">
-          Comisiones confirmadas tras la entrega del courier a tus clientes.
-        </p>
-
-        {/* Candado de Retiro Mínimo $20 USD */}
+      {/* 2. Botón de Solicitud de Retiro para Corte Semanal (con métodos Pichincha / DeUna) */}
+      <div className="rounded-2xl border border-neutral-800 bg-neutral-900/80 p-4 shadow-lg">
         {!canWithdraw ? (
-          <div className="mt-4 space-y-2 rounded-xl border border-amber-500/30 bg-neutral-900/90 p-3">
+          <div className="space-y-2.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-neutral-300 flex items-center gap-1.5">
                 <Lock className="h-3.5 w-3.5 text-amber-400" />
@@ -362,12 +387,12 @@ export default function BilleteraPage() {
 
             <button
               disabled
-              className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-800 bg-neutral-800/60 py-2.5 text-xs font-bold text-neutral-400 cursor-not-allowed"
+              className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-800 bg-neutral-800/60 py-3 text-xs font-bold text-neutral-400 cursor-not-allowed"
             >
               <Lock className="h-4 w-4" />
               <span>Faltan ${missingAmount.toFixed(2)} USD para Retirar</span>
             </button>
-            <p className="mt-2 text-center text-[11px] text-neutral-400">
+            <p className="mt-1 text-center text-[11px] text-neutral-400">
               🗓️ Transferencias bancarias y DeUna procesadas los días lunes (Monto mín. $20.00 USD).
             </p>
           </div>
@@ -378,89 +403,33 @@ export default function BilleteraPage() {
                 setIsPayoutSuccess(false);
                 setIsModalOpen(true);
               }}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3 font-bold text-black shadow-lg shadow-emerald-500/20 transition hover:opacity-95 active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3.5 font-bold text-black shadow-lg shadow-emerald-500/20 transition hover:opacity-95 active:scale-[0.98]"
             >
               <ArrowDownLeft className="h-5 w-5" />
               <span>Solicitar Retiro para Corte Semanal</span>
             </button>
-            <p className="mt-2 text-center text-[11px] text-neutral-400">
+            <p className="mt-2 text-center text-xs text-neutral-400">
               🗓️ Transferencias bancarias y DeUna procesadas los días lunes (Monto mín. $20.00 USD).
             </p>
           </div>
         )}
       </div>
 
-      {/* Widget Red de Referidos */}
-      <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-neutral-900 to-neutral-950 p-4 shadow-lg flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-white flex items-center gap-1.5">
-              <span>Gana +$5.00 USD por cada amigo</span>
-              <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[9px] text-indigo-300 font-bold">Bono Red</span>
-            </div>
-            <p className="text-[11px] text-neutral-400">
-              Código: <strong className="text-emerald-400 font-mono">{seller.referralCode}</strong> &bull; {seller.referredCount || 0} amigos
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/equipo"
-          className="flex items-center gap-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-3 py-2 text-xs font-bold text-white transition active:scale-95"
-        >
-          <span>Invitar</span>
-          <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-
-      {/* Sub-Balances: Pendiente y Retirado */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Pendiente de Entrega */}
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-3.5">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-amber-400">
-            <Clock className="h-4 w-4" />
-            <span>Pendiente de Entrega</span>
-          </div>
-          <div className="mt-1.5 text-xl font-bold text-white">
-            ${seller.balancePending.toFixed(2)}
-          </div>
-          <p className="mt-1 text-[10px] text-neutral-400 leading-tight">
-            Comisiones en tránsito COD. Se liberan al marcarse &quot;ENTREGADO&quot;.
-          </p>
-        </div>
-
-        {/* Retirado Histórico */}
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900/80 p-3.5">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-blue-400">
-            <TrendingUp className="h-4 w-4" />
-            <span>Total Retirado</span>
-          </div>
-          <div className="mt-1.5 text-xl font-bold text-white">
-            ${seller.balanceWithdrawn.toFixed(2)}
-          </div>
-          <p className="mt-1 text-[10px] text-neutral-400 leading-tight">
-            Monto acumulado pagado a tu cuenta bancaria.
-          </p>
-        </div>
-      </div>
-
-      {/* Desafío Semanal y Gamificación */}
+      {/* 3. Tarjeta del Desafío Semanal de Ventas */}
       <WeeklyChallengeCard orders={orders} />
 
-      {/* Explicación Reglas COD Ecuador */}
-      <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/40 p-3.5 text-xs text-neutral-400 space-y-1.5">
+      {/* 4. Reglas del Modelo Contra Entrega (COD) */}
+      <div className="rounded-xl border border-neutral-800/80 bg-neutral-900/40 p-4 text-xs text-neutral-400 space-y-2">
         <div className="flex items-center gap-2 text-white font-semibold">
           <ShieldCheck className="h-4 w-4 text-emerald-400" />
           <span>Reglas del Modelo Contra Entrega (COD)</span>
         </div>
-        <p className="text-[11px] leading-relaxed">
-          1. Al registrar tu pedido, tu comisión entra en <strong className="text-amber-300">Pendiente de Entrega</strong>.<br />
-          2. Servientrega o Laar Courier recolecta el paquete y cobra el valor en efectivo al cliente.<br />
-          3. Al confirmarse la entrega, la comisión se transfiere inmediatamente a tu <strong className="text-emerald-300">Disponible para Retiro</strong>.<br />
-          4. Retiros procesados en menos de 24 horas por Banco Pichincha, Guayaquil o DeUna!.
-        </p>
+        <div className="space-y-1.5 text-[11px] leading-relaxed">
+          <p>1. Al registrar tu pedido, tu comisión entra en <strong className="text-amber-300">Pendiente de Entrega</strong>.</p>
+          <p>2. Servientrega o Laar Courier recolecta el paquete y cobra el valor en efectivo al cliente.</p>
+          <p>3. Al confirmarse la entrega, la comisión se transfiere inmediatamente a tu <strong className="text-emerald-300">Disponible para Retiro</strong>.</p>
+          <p>4. <strong className="text-emerald-300">Corte Semanal:</strong> Transferencias por Banco Pichincha y pagos por DeUna procesados los días lunes (monto mín. $20.00 USD).</p>
+        </div>
       </div>
 
       {/* Historial de Pedidos y Chips de Estado COD */}
