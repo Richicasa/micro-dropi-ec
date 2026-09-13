@@ -86,7 +86,7 @@ function PedidosContent() {
           </span>
         </h1>
         <p className="text-xs text-neutral-400 mt-0.5">
-          Monitorea el estado logístico de tus paquetes en Servientrega y Laar Courier en tiempo real.
+          Monitorea el estado logístico de tus paquetes en Laar Courier en tiempo real.
         </p>
       </div>
 

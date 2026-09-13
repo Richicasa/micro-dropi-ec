@@ -14,6 +14,7 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 const CreateOrderSchema = z.object({
   productId: z.string().min(1, "El producto es obligatorio"),
   quantity: z.coerce.number().int().min(1, "La cantidad mínima es 1"),
+  courier: z.string().default("laar"),
   courierName: z.string().default("Laar Courier"),
   clientName: z.string().min(3, "El nombre del cliente debe tener al menos 3 caracteres"),
   clientCedula: z
@@ -80,7 +81,8 @@ export async function createOrderAction(
     const {
       productId,
       quantity,
-      courierName,
+      courier,
+      courierName: rawCourierName,
       clientName,
       clientCedula,
       clientPhone,
@@ -89,6 +91,8 @@ export async function createOrderAction(
       clientAddress,
       deliveryReference
     } = parsed.data;
+
+    const courierName = rawCourierName || (courier === "laar" ? "Laar Courier" : "Laar Courier");
 
     // 3. Normalizar formato E.164 del teléfono móvil de Ecuador (+5939xxxxxxxx)
     const phoneNorm = validateEcuadorianPhone(clientPhone);

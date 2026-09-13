@@ -38,7 +38,8 @@ function NuevoPedidoForm() {
     initialProductId || (products[0]?.id ?? "")
   );
   const [quantity, setQuantity] = useState<number>(1);
-  const [courierName, setCourierName] = useState<string>("Laar Courier");
+  const [courier] = useState<string>("laar");
+  const [courierName] = useState<string>("Laar Courier");
 
   // Datos del Cliente en Ecuador
   const [clientName, setClientName] = useState("");
@@ -115,6 +116,7 @@ function NuevoPedidoForm() {
       const result = await createOrderAction({
         productId: currentProduct.id,
         quantity,
+        courier,
         courierName,
         clientName: clientName.trim(),
         clientCedula: clientCedula.trim(),
@@ -196,8 +198,8 @@ function NuevoPedidoForm() {
             </div>
           )}
 
-          {/* Cantidad y Courier */}
-          <div className="grid grid-cols-2 gap-3 pt-1">
+          {/* Cantidad y Transportadora Oficial */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
               <label className="block text-[11px] font-medium text-neutral-400 mb-1">
                 Cantidad
@@ -225,17 +227,12 @@ function NuevoPedidoForm() {
 
             <div>
               <label className="block text-[11px] font-medium text-neutral-400 mb-1">
-                Courier Asignado
+                Transportadora Oficial
               </label>
-              <select
-                value={courierName}
-                onChange={(e) => setCourierName(e.target.value)}
-                className="w-full rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs font-medium text-white outline-none focus:border-emerald-500"
-              >
-                <option value="Laar Courier">Laar Courier (Recomendado)</option>
-                <option value="Servientrega">Servientrega Ecuador</option>
-                <option value="Speed Courier">Speed Courier Express</option>
-              </select>
+              <div className="flex items-center gap-2 rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2 text-xs font-semibold text-neutral-200">
+                <span className="text-base select-none">🚚</span>
+                <span className="text-white">Laar Courier (Entrega y Recaudo COD)</span>
+              </div>
             </div>
           </div>
         </div>
@@ -260,7 +257,7 @@ function NuevoPedidoForm() {
               <span>-${totalSupplierCost.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-neutral-400 text-[11px]">
-              <span>(-) Flete Courier Nacional Ecuador:</span>
+              <span>(-) Flete Laar Courier COD (Fijo):</span>
               <span>-${deliveryCost.toFixed(2)}</span>
             </div>
 

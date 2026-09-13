@@ -426,7 +426,7 @@ export default function BilleteraPage() {
         </div>
         <div className="space-y-1.5 text-[11px] leading-relaxed">
           <p>1. Al registrar tu pedido, tu comisión entra en <strong className="text-amber-300">Pendiente de Entrega</strong>.</p>
-          <p>2. Servientrega o Laar Courier recolecta el paquete y cobra el valor en efectivo al cliente.</p>
+          <p>2. Laar Courier recolecta el paquete y cobra el valor en efectivo al cliente.</p>
           <p>3. Al confirmarse la entrega, la comisión se transfiere inmediatamente a tu <strong className="text-emerald-300">Disponible para Retiro</strong>.</p>
           <p>4. <strong className="text-emerald-300">Corte Semanal:</strong> Transferencias por Banco Pichincha y pagos por DeUna procesados los días lunes (monto mín. $20.00 USD).</p>
         </div>
