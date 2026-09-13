@@ -69,7 +69,7 @@ export default function BilleteraPage() {
                 phoneWhatsapp: profile.phone_whatsapp,
                 cedula: profile.cedula || "",
                 role: profile.role || "seller",
-                bankName: profile.bank_name || "BANCO_PICHINCHA",
+                bankName: (profile.bank_name === "DEUNA" || profile.bank_name === "DEUNA_PICHINCHA") ? "DEUNA" : "BANCO_PICHINCHA",
                 accountType: profile.account_type || "AHORROS",
                 accountNumber: profile.account_number || "",
                 accountHolderName: profile.account_holder_name || profile.full_name,
@@ -213,36 +213,62 @@ export default function BilleteraPage() {
       return;
     }
 
-    if (!accountNumber.trim()) {
-      showToast("Ingresa tu número de cuenta o teléfono DeUna!", "error");
+    const cleanAccountOrPhone = accountNumber.replace(/\D/g, "");
+
+    if (bankName === "DEUNA") {
+      if (cleanAccountOrPhone.length !== 10 || !cleanAccountOrPhone.startsWith("09")) {
+        showToast("El número celular DeUna debe tener 10 dígitos y comenzar con 09 (ej: 0983741834)", "error");
+        return;
+      }
+    } else {
+      if (cleanAccountOrPhone.length !== 10) {
+        showToast("El número de cuenta de Banco Pichincha debe tener exactamente 10 dígitos", "error");
+        return;
+      }
+    }
+
+    if (!holderName.trim() || holderName.trim().length < 3) {
+      showToast("Ingresa el nombre completo del titular", "error");
+      return;
+    }
+
+    const cleanCedula = holderCedula.replace(/\D/g, "");
+    if (cleanCedula.length !== 10) {
+      showToast("La cédula de identidad debe tener exactamente 10 dígitos", "error");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const supabase = getSupabaseBrowserClient();
-      if (supabase && isSupabaseConfigured) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { error: payoutError } = await supabase.from("payouts").insert({
-            seller_id: user.id,
-            amount: amount,
-            status: "SOLICITADO",
-            bank_details: {
-              bankName,
-              accountType,
-              accountNumber,
-              accountHolderName: holderName,
-              accountHolderCedula: holderCedula
-            }
-          });
+      // 1. Llamar a endpoint de payouts para registrar y enviar alerta a Telegram
+      const res = await fetch("/api/payouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerId: seller.id,
+          amount,
+          bankName,
+          accountType: bankName === "DEUNA" ? "DEUNA" : accountType,
+          accountNumber: cleanAccountOrPhone,
+          accountHolderName: holderName.trim(),
+          accountHolderCedula: cleanCedula,
+          sellerName: seller.fullName,
+        }),
+      });
 
-          if (payoutError) throw payoutError;
-        }
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error al procesar el retiro");
       }
 
-      // También registrar en store local para actualización reactiva inmediata
-      store.requestPayout(amount);
+      // 2. Registrar en store local para actualización reactiva inmediata
+      store.requestPayout(amount, {
+        bankName,
+        accountType: bankName === "DEUNA" ? "DEUNA" : accountType,
+        accountNumber: cleanAccountOrPhone,
+        accountHolderName: holderName.trim(),
+        accountHolderCedula: cleanCedula,
+      });
 
       setLastSubmittedAmount(amount);
       setIsPayoutSuccess(true);
@@ -588,6 +614,16 @@ export default function BilleteraPage() {
                     </span>
                   </div>
                   <div className="flex justify-between">
+                    <span className="text-neutral-400">Método:</span>
+                    <span className="font-semibold text-white">
+                      {bankName === "DEUNA" ? "DeUna (Celular)" : "Banco Pichincha"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-400">Destino:</span>
+                    <span className="font-mono text-emerald-300 font-semibold">{accountNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-neutral-400">Corte de pago:</span>
                     <span className="font-semibold text-white">Próximo Lunes</span>
                   </div>
@@ -646,90 +682,144 @@ export default function BilleteraPage() {
                     </div>
                   </div>
 
-                  {/* Banco de Ecuador */}
+                  {/* Selector de Método de Pago (Exclusivamente Banco Pichincha y DeUna) */}
                   <div>
-                    <label className="block text-neutral-300 font-medium mb-1">
-                      Banco o Billetera en Ecuador *
+                    <label className="block text-neutral-300 font-semibold mb-1">
+                      Método de Pago en Ecuador *
                     </label>
                     <select
                       value={bankName}
-                      onChange={(e) => setBankName(e.target.value as BankEcuador)}
-                      className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
+                      onChange={(e) => {
+                        const val = e.target.value as BankEcuador;
+                        setBankName(val);
+                        if (val === "DEUNA") {
+                          setAccountType("DEUNA");
+                        } else {
+                          setAccountType("AHORROS");
+                        }
+                      }}
+                      className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2.5 text-xs text-white font-medium outline-none focus:border-emerald-500"
                     >
-                      <option value="BANCO_PICHINCHA">Banco Pichincha</option>
-                      <option value="DEUNA_PICHINCHA">DeUna! Pichincha (Inmediato)</option>
-                      <option value="BANCO_GUAYAQUIL">Banco Guayaquil</option>
-                      <option value="PRODUBANCO">Produbanco</option>
-                      <option value="BANCO_PACIFICO">Banco del Pacífico</option>
-                      <option value="BANCO_BOLIVARIANO">Banco Bolivariano</option>
-                      <option value="COOPERATIVA_JEP">Cooperativa JEP</option>
-                      <option value="OTRO">Otro Banco / Cooperativa</option>
+                      <option value="BANCO_PICHINCHA">Banco Pichincha (Transferencia directa)</option>
+                      <option value="DEUNA">DeUna (Pago a número celular)</option>
                     </select>
                   </div>
 
-                  {/* Tipo de Cuenta */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-neutral-300 font-medium mb-1">
-                        Tipo de Cuenta
-                      </label>
-                      <select
-                        value={accountType}
-                        onChange={(e) => setAccountType(e.target.value as "AHORROS" | "CORRIENTE" | "DEUNA")}
-                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                      >
-                        <option value="AHORROS">Ahorros</option>
-                        <option value="CORRIENTE">Corriente</option>
-                        <option value="DEUNA">Billetera Móvil</option>
-                      </select>
-                    </div>
+                  {/* CAMPOS CONDICIONALES SEGÚN EL MÉTODO SELECCIONADO */}
+                  {bankName === "BANCO_PICHINCHA" ? (
+                    // OPCIÓN 1: BANCO PICHINCHA
+                    <div className="space-y-3 pt-1">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-neutral-300 font-medium mb-1">
+                            Tipo de Cuenta *
+                          </label>
+                          <select
+                            value={accountType}
+                            onChange={(e) => setAccountType(e.target.value as "AHORROS" | "CORRIENTE")}
+                            className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500 text-xs"
+                          >
+                            <option value="AHORROS">Ahorros</option>
+                            <option value="CORRIENTE">Corriente</option>
+                          </select>
+                        </div>
 
-                    <div>
-                      <label className="block text-neutral-300 font-medium mb-1">
-                        Número de Cuenta / Celular *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="2201948572"
-                        value={accountNumber}
-                        onChange={(e) => setAccountNumber(e.target.value)}
-                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                      />
-                    </div>
-                  </div>
+                        <div>
+                          <label className="block text-neutral-300 font-medium mb-1">
+                            Nº Cuenta (10 dígitos) *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            maxLength={10}
+                            placeholder="2201948572"
+                            value={accountNumber}
+                            onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                            className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-mono outline-none focus:border-emerald-500 text-xs"
+                          />
+                        </div>
+                      </div>
 
-                  {/* Titular y Cédula */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-neutral-300 font-medium mb-1">
-                        Nombre del Titular *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Carlos Mendoza"
-                        value={holderName}
-                        onChange={(e) => setHolderName(e.target.value)}
-                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                      />
-                    </div>
+                      <div>
+                        <label className="block text-neutral-300 font-medium mb-1">
+                          Nombre Completo del Titular *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ej. Carlos Mendoza Andrade"
+                          value={holderName}
+                          onChange={(e) => setHolderName(e.target.value)}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500 text-xs"
+                        />
+                      </div>
 
-                    <div>
-                      <label className="block text-neutral-300 font-medium mb-1">
-                        Cédula del Titular *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        maxLength={10}
-                        placeholder="1723456789"
-                        value={holderCedula}
-                        onChange={(e) => setHolderCedula(e.target.value)}
-                        className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500"
-                      />
+                      <div>
+                        <label className="block text-neutral-300 font-medium mb-1">
+                          Cédula de Identidad (10 dígitos) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={10}
+                          placeholder="1723456789"
+                          value={holderCedula}
+                          onChange={(e) => setHolderCedula(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-mono outline-none focus:border-emerald-500 text-xs"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    // OPCIÓN 2: DEUNA
+                    <div className="space-y-3 pt-1">
+                      <div>
+                        <label className="block text-neutral-300 font-medium mb-1">
+                          Número Celular DeUna (10 dígitos) *
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          maxLength={10}
+                          placeholder="09XXXXXXXX"
+                          value={accountNumber}
+                          onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-mono outline-none focus:border-emerald-500 text-xs"
+                        />
+                        <span className="mt-1 block text-[10px] text-neutral-400">
+                          Número de celular de Ecuador registrado en la app DeUna!.
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="block text-neutral-300 font-medium mb-1">
+                          Nombre del Titular *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ej. Carlos Mendoza Andrade"
+                          value={holderName}
+                          onChange={(e) => setHolderName(e.target.value)}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white outline-none focus:border-emerald-500 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-neutral-300 font-medium mb-1">
+                          Cédula de Identidad (10 dígitos) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={10}
+                          placeholder="1723456789"
+                          value={holderCedula}
+                          onChange={(e) => setHolderCedula(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                          className="w-full rounded-xl border border-neutral-800 bg-neutral-900 px-3 py-2 text-white font-mono outline-none focus:border-emerald-500 text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Botonera */}
                   <div className="flex gap-2 pt-3">

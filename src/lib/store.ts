@@ -1,7 +1,7 @@
 // ==============================================================================
 // GESTOR DE ESTADO REACTIVO Y SERVICIOS - MICRO-DROPI ECUADOR
 // ==============================================================================
-import { Product, Order, OrderStatus, SellerProfile, PayoutRequest } from "./types";
+import { Product, Order, OrderStatus, SellerProfile, PayoutRequest, BankEcuador } from "./types";
 
 export const INITIAL_PRODUCTS: Product[] = [
   {
@@ -296,12 +296,20 @@ class MemoryStore {
     return order;
   }
 
-  requestPayout(amount: number): PayoutRequest {
+  requestPayout(amount: number, customBankDetails?: PayoutRequest["bankDetails"]): PayoutRequest {
     this.loadFromStorage();
     if (amount <= 0) throw new Error("El monto de retiro debe ser mayor a cero");
     if (amount < 20.0) throw new Error("El retiro mínimo en Ecuador es de $20.00 USD");
     if (amount > this.seller.balanceAvailable) {
       throw new Error(`Saldo disponible insuficiente. Tienes $${this.seller.balanceAvailable.toFixed(2)} USD`);
+    }
+
+    if (customBankDetails) {
+      this.seller.bankName = customBankDetails.bankName as BankEcuador;
+      this.seller.accountType = customBankDetails.accountType as any;
+      this.seller.accountNumber = customBankDetails.accountNumber;
+      this.seller.accountHolderName = customBankDetails.accountHolderName;
+      this.seller.accountHolderCedula = customBankDetails.accountHolderCedula;
     }
 
     // Deducir del disponible
@@ -313,11 +321,11 @@ class MemoryStore {
       amount,
       status: "SOLICITADO",
       bankDetails: {
-        bankName: this.seller.bankName,
-        accountType: this.seller.accountType,
-        accountNumber: this.seller.accountNumber,
-        accountHolderName: this.seller.accountHolderName,
-        accountHolderCedula: this.seller.accountHolderCedula
+        bankName: customBankDetails?.bankName || this.seller.bankName,
+        accountType: customBankDetails?.accountType || this.seller.accountType,
+        accountNumber: customBankDetails?.accountNumber || this.seller.accountNumber,
+        accountHolderName: customBankDetails?.accountHolderName || this.seller.accountHolderName,
+        accountHolderCedula: customBankDetails?.accountHolderCedula || this.seller.accountHolderCedula
       },
       createdAt: new Date().toISOString()
     };

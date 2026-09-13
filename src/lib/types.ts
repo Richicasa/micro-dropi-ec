@@ -13,16 +13,7 @@ export type OrderStatus =
 
 export type PayoutStatus = "SOLICITADO" | "EN_PROCESO" | "PAGADO" | "RECHAZADO";
 
-export type BankEcuador =
-  | "BANCO_PICHINCHA"
-  | "BANCO_GUAYAQUIL"
-  | "PRODUBANCO"
-  | "BANCO_PACIFICO"
-  | "BANCO_BOLIVARIANO"
-  | "BANCO_INTERNACIONAL"
-  | "COOPERATIVA_JEP"
-  | "DEUNA_PICHINCHA"
-  | "OTRO";
+export type BankEcuador = "BANCO_PICHINCHA" | "DEUNA";
 
 export type SellerRank = "NOVATO" | "VERIFICADO" | "ELITE";
 

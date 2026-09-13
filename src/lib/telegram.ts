@@ -142,3 +142,65 @@ export async function sendTelegramDeliveredAlert(
     return { success: false };
   }
 }
+
+export interface TelegramPayoutAlertData {
+  amount: number;
+  method: "Banco Pichincha" | "DeUna" | string;
+  destination: string; // Número de cuenta o celular DeUna
+  accountHolderName: string;
+  accountHolderCedula: string;
+  accountType?: string;
+  sellerName?: string;
+}
+
+/**
+ * Notifica a Telegram cuando un vendedor ingresa una solicitud de retiro de comisiones.
+ */
+export async function sendTelegramPayoutAlert(
+  data: TelegramPayoutAlertData
+): Promise<{ success: boolean; error?: string }> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID_DISPATCH;
+
+  if (!botToken || !chatId) {
+    console.info("[TELEGRAM BOT] Bot no configurado para alerta de retiro.");
+    return { success: false, error: "Bot no configurado" };
+  }
+
+  // Formato requerido:
+  // 💸 Solicitud de Retiro: $[monto] USD | Método: [Banco Pichincha / DeUna] | Destino: [número de cuenta o celular DeUna] | Titular: [Nombre] (CI: [Cédula])
+  const summaryLine = `💸 Solicitud de Retiro: $${data.amount.toFixed(2)} USD | Método: ${data.method} | Destino: ${data.destination} | Titular: ${data.accountHolderName} (CI: ${data.accountHolderCedula})`;
+
+  const message = `
+<b>${summaryLine}</b>
+━━━━━━━━━━━━━━━━━━
+💰 <b>Monto Solicitado:</b> $${data.amount.toFixed(2)} USD
+🏦 <b>Método:</b> ${data.method} ${data.accountType ? `(${data.accountType})` : ""}
+📱/💳 <b>Destino:</b> <code>${data.destination}</code>
+👤 <b>Titular:</b> ${data.accountHolderName}
+🆔 <b>Cédula:</b> <code>${data.accountHolderCedula}</code>
+${data.sellerName ? `🏷️ <b>Vendedor:</b> ${data.sellerName}\n` : ""}
+🗓️ <i>Entrará en el corte de transferencias del próximo lunes.</i>
+`.trim();
+
+  try {
+    const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message,
+        parse_mode: "HTML",
+      }),
+    });
+
+    const result = await response.json();
+    return { success: Boolean(result.ok) };
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Error enviando alerta de retiro a Telegram";
+    console.error("[TELEGRAM PAYOUT ALERT ERROR]:", errorMsg);
+    return { success: false, error: errorMsg };
+  }
+}
+
